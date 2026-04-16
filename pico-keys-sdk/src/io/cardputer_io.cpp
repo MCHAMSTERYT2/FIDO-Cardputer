@@ -4,7 +4,8 @@
 #include "keyboard.h"
 #include "keyboard.h"
 #include "display.h"
-extern "C" {
+extern "C"
+{
 #ifdef SD_SAVE
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
@@ -20,20 +21,13 @@ extern "C" {
 #define PIN_NUM_CS (gpio_num_t)12
 #endif // SD_SAVE
 
-static bool button_read(void)
-{
-    int boot_state = gpio_get_level((gpio_num_t)0);
-    return boot_state == 0;
-}
-
 extern "C" void init_cardputer_hw()
 {
     auto cfg = M5.config();
     M5.begin(cfg);
-    begin();    
+    begin();
 
     showMessage("FIDO Cardputer");
-    
 
 #ifdef SD_SAVE
     esp_err_t ret;
@@ -74,23 +68,12 @@ extern "C" void init_cardputer_hw()
         M5.Display.drawString("SD mounted!", 0, 20);
     }
 #endif // SD_SAVE
-
-    
 }
 
-extern "C" bool wait_for_keypress()
+extern "C" bool confirm_auth()
 {
-    M5.Display.drawString("Press G0.. ", M5.Display.width() / 2,
-                          M5.Display.height() / 2 + 20);
-    while (true)
-    {
-        if (button_read())
-        {
-            M5.Display.drawString("Confirmed!", M5.Display.width() / 2,
-                                  M5.Display.height() / 2 + 20);
-            return false;
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
+    bool choice = (!confirm("Authenticate?"));
+    displayClearMainView();
+    showMessage("FIDO Cardputer");
+    return choice;
 }

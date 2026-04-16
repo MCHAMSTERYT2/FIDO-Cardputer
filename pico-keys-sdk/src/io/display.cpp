@@ -266,7 +266,7 @@ bool confirm(std::string prompt)
         for (size_t i = 0; i < prompt.length(); i += charsPerLine)
         {
             std::string line = prompt.substr(i, charsPerLine);
-            M5.Lcd.setCursor(20, yOffset);
+            M5.Lcd.setCursor(40, yOffset);
             M5.Lcd.print(line.c_str());
             yOffset += 15; // Move to next line
         }

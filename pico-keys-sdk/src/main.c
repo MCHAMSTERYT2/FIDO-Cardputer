@@ -151,7 +151,7 @@ bool button_pressed_state = false;
 uint32_t button_pressed_time = 0;
 uint8_t button_press = 0;
 bool wait_button(void) {
-    return wait_for_keypress();
+    return confirm_auth();
 }
 
 __attribute__((weak)) int picokey_init(void) {
