@@ -22,7 +22,10 @@ cd pico-fido
 Then build and flash with these commands:
 
 ```sh
-docker run --rm -v $PWD:/project -w /project -u $UID -e HOME=/tmp espressif/idf:release-v5.5 idf.py build
+docker run --rm -v $PWD:/project -w /project -u $UID -e HOME=/tmp espressif/idf:release-v5.5 \
+  idf.py set-target esp32-s3
+docker run --rm -v $PWD:/project -w /project -u $UID -e HOME=/tmp espressif/idf:release-v5.5 \
+  idf.py build
 
 esptool  --before default-reset --after hard-reset write-flash --flash-mode dio \
   --flash-size 4MB --flash-freq 80m 0x0 build/bootloader/bootloader.bin 0x8000 \
