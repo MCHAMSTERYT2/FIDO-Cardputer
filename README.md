@@ -30,9 +30,8 @@ docker run --rm -v $PWD:/project -w /project -u $UID -e HOME=/tmp espressif/idf:
 docker run --rm -v $PWD:/project -w /project -u $UID -e HOME=/tmp espressif/idf:release-v5.5 \
   idf.py build
 
-esptool  --before default-reset --after hard-reset write-flash --flash-mode dio \
-  --flash-size 4MB --flash-freq 80m 0x0 build/bootloader/bootloader.bin 0x8000 \
-  build/partition_table/partition-table.bin 0x20000 build/pico_fido.bin
+esptool --flash-size 4MB --flash-freq 80m 0x0 build/bootloader/bootloader.bin 0x8000 \
+  build/partition_table/partition-table.bin 0x20000 build/FIDO-Cardputer.bin
 ```
 
 ## Credits

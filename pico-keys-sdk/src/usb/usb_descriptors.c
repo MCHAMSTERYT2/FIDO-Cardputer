@@ -18,12 +18,7 @@
 #include "pico_keys.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
-#if defined(PICO_PLATFORM)
-#include "pico/unique_id.h"
-#endif
-#ifdef ESP_PLATFORM
 #include "tinyusb.h"
-#endif
 #include "pico_keys_version.h"
 #include "usb.h"
 
@@ -34,11 +29,7 @@
 #define USB_PID   0x10FD
 #endif
 
-#if defined(PICO_PLATFORM) || defined(ESP_PLATFORM)
 #define USB_BCD   0x0210
-#else
-#define USB_BCD   0x0110
-#endif
 
 #define USB_CONFIG_ATT_ONE TU_BIT(7)
 
@@ -68,11 +59,6 @@ tusb_desc_device_t desc_device = {
     .bNumConfigurations = 1
 };
 
-#ifndef ESP_PLATFORM
-uint8_t const *tud_descriptor_device_cb(void) {
-    return (uint8_t const *) &desc_device;
-}
-#endif
 //--------------------------------------------------------------------+
 // Configuration Descriptor
 //--------------------------------------------------------------------+
@@ -196,13 +182,6 @@ void usb_desc_setup(void) {
     desc_config[3] = TUSB_DESC_TOTAL_LEN >> 8;
 }
 
-#ifndef ESP_PLATFORM
-uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
-    (void) index; // for multiple configurations
-    usb_desc_setup();
-    return desc_config;
-}
-#endif
 
 #ifdef USB_ITF_WCID
 
@@ -214,7 +193,7 @@ enum
   VENDOR_REQUEST_WEBUSB = 1,
   VENDOR_REQUEST_MICROSOFT = 2
 };
-#define URL  "www.picokeys.com"
+#define URL  "github.com/gavhu10/FIDO-Cardputer"
 static bool web_serial_connected = false;
 
 const tusb_desc_webusb_url_t desc_url =
@@ -319,8 +298,8 @@ uint8_t const *tud_descriptor_bos_cb(void) {
 char *string_desc_itf[4] = {0};
 char const *string_desc_arr [] = {
     (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
-    "Pol Henarejos",                     // 1: Manufacturer
-    "Pico Key",                       // 2: Product
+    "gavhu10",                     // 1: Manufacturer
+    "FIDO Cardputer",                       // 2: Product
     "11223344",                      // 3: Serials, should use chip ID
     "Config"               // 4: Vendor Interface
     , "HID Interface"
@@ -333,7 +312,6 @@ char const *string_desc_arr [] = {
     , "WebCCID Interface"
 };
 
-#ifdef ESP_PLATFORM
 tinyusb_config_t tusb_cfg = {
     .device_descriptor = &desc_device,
     .string_descriptor = string_desc_arr,
@@ -341,59 +319,3 @@ tinyusb_config_t tusb_cfg = {
     .external_phy = false,
     .configuration_descriptor = desc_config,
 };
-#else
-static uint16_t _desc_str[32];
-
-uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
-    (void) langid;
-
-    uint8_t chr_count = 0;
-
-    if (index == 0) {
-        memcpy(&_desc_str[1], string_desc_arr[0], 2);
-        chr_count = 1;
-    }
-    else {
-        // Note: the 0xEE index string is a Microsoft OS 1.0 Descriptors.
-        // https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/microsoft-defined-usb-descriptors
-
-        if (!(index < sizeof(string_desc_arr) / sizeof(string_desc_arr[0]))) {
-            return NULL;
-        }
-
-        const char *str = string_desc_arr[index];
-        if (index == 3) {
-            str = pico_serial_str;
-        }
-        else if (index == 2) {
-            if (phy_data.usb_product_present) {
-                str = phy_data.usb_product;
-            }
-        }
-        else if (index >= 5 && string_desc_itf[index - 5] != NULL) {
-            str = string_desc_itf[index - 5];
-        }
-
-        uint8_t buff_avail = sizeof(_desc_str) / sizeof(_desc_str[0]) - 1;
-        if (index >= 4) {
-            const char *product = phy_data.usb_product_present ? phy_data.usb_product : string_desc_arr[2];
-            uint8_t len = (uint8_t)MIN(strlen(product), buff_avail);
-            for (size_t ix = 0; ix < len; chr_count++, ix++) {
-                _desc_str[1 + chr_count] = product[ix];
-            }
-            buff_avail -= len;
-            if (buff_avail > 0) {
-                _desc_str[1 + chr_count++] = ' ';
-                buff_avail--;
-            }
-        }
-        for (size_t ix = 0; ix < MIN(strlen(str), buff_avail); chr_count++, ix++) {
-            _desc_str[1 + chr_count] = str[ix];
-        }
-    }
-
-    _desc_str[0] = (TUSB_DESC_STRING << 8) | (2 * chr_count + 2);
-
-    return _desc_str;
-}
-#endif
