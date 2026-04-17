@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          BUILD_DIR=".pio/build/$PIO_ENV"
+          BUILD_DIR="/project"
           mkdir -p dist/launcher dist/fullflash dist/split dist/meta
 
           cp "$BUILD_DIR/firmware.bin" dist/launcher/cardputer-launcher.bin
@@ -54,15 +54,6 @@ jobs:
             echo "Expected firmware.bin to begin with ESP image magic e9, got: $MAGIC" >&2
             exit 1
           fi
-
-          BOOT_APP0="$(find "$HOME/.platformio/packages" -path '*/tools/partitions/boot_app0.bin' | head -n 1)"
-          if [[ -z "$BOOT_APP0" ]]; then
-            echo "Could not locate boot_app0.bin under ~/.platformio/packages" >&2
-            exit 1
-          fi
-
-          echo "Using boot_app0: $BOOT_APP0"
-          cp "$BOOT_APP0" dist/meta/boot_app0.bin
 
           python -m esptool --chip "$ESP_CHIP" merge-bin \
             -o dist/fullflash/cardputer-fullflash.bin \
