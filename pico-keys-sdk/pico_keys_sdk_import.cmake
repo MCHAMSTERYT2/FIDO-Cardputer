@@ -18,7 +18,8 @@
 include(pico-keys-sdk/cmake/version.cmake OPTIONAL)
 include(pico-keys-sdk/cmake/options.cmake OPTIONAL)
 
-option(VIDPID "Set specific VID/PID from a known platform {NitroHSM, NitroFIDO2, NitroStart, NitroPro, Nitro3, Yubikey5, YubikeyNeo, YubiHSM, Gnuk, GnuPG}" "Yubikey5") 
+option(VIDPID "Set specific VID/PID from a known platform {NitroHSM, NitroFIDO2, NitroStart, NitroPro, Nitro3, Yubikey5, YubikeyNeo, YubiHSM, Gnuk, GnuPG}" "None") 
+set(VIDPID "Yubikey5")
 
 message(STATUS "VIDPID:\t\t\t '${VIDPID}'")
 
@@ -54,13 +55,12 @@ elseif(VIDPID STREQUAL "GnuPG")
     set(USB_PID 0x2440)
 endif()
 
-if(ESP_PLATFORM)
-    if(DEFINED CONFIG_TINYUSB_DESC_CUSTOM_VID)
-        set(USB_VID CONFIG_TINYUSB_DESC_CUSTOM_VID)
-    endif()
-    if(DEFINED CONFIG_TINYUSB_DESC_CUSTOM_PID)
-        set(USB_PID CONFIG_TINYUSB_DESC_CUSTOM_PID)
-    endif()
+
+if(DEFINED CONFIG_TINYUSB_DESC_CUSTOM_VID)
+    set(USB_VID CONFIG_TINYUSB_DESC_CUSTOM_VID)
+endif()
+if(DEFINED CONFIG_TINYUSB_DESC_CUSTOM_PID)
+    set(USB_PID CONFIG_TINYUSB_DESC_CUSTOM_PID)
 endif()
 
 if(NOT DEFINED USB_VID)
@@ -112,116 +112,6 @@ endif()
 
 message(STATUS "USB VID/PID:\t\t\t ${USB_VID}:${USB_PID}")
 
-if(NOT ESP_PLATFORM)
-    set(NEED_UPDATE OFF)
-
-    option(ENABLE_EDDSA "Enable/disable EdDSA support" OFF)
-    configure_bool_option(
-        ENABLE_EDDSA
-        ""
-        "EdDSA support:\t\t enabled"
-        "EdDSA support:\t\t disabled"
-    )
-
-    set(MBEDTLS_PATH "${CMAKE_SOURCE_DIR}/pico-keys-sdk/mbedtls")
-    execute_process(
-        COMMAND git config --global --add safe.directory ${MBEDTLS_PATH}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_QUIET ERROR_QUIET
-    )
-
-    if(ENABLE_EDDSA)
-        set(MBEDTLS_ORIGIN "https://github.com/polhenarejos/mbedtls.git")
-        set(MBEDTLS_REF "mbedtls-3.6-eddsa")
-
-        execute_process(
-            COMMAND git -C ${MBEDTLS_PATH} symbolic-ref --quiet --short HEAD
-            OUTPUT_VARIABLE CURRENT_BRANCH
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            RESULT_VARIABLE BRANCH_ERR
-        )
-
-        message(STATUS "Current branch for mbedTLS: ${CURRENT_BRANCH}")
-        message(STATUS "Target branch for mbedTLS:  ${MBEDTLS_REF}")
-
-        if(NOT BRANCH_ERR EQUAL 0 OR NOT "${CURRENT_BRANCH}" STREQUAL "${MBEDTLS_REF}")
-            set(NEED_UPDATE ON)
-        else()
-            set(NEED_UPDATE OFF)
-        endif()
-
-        add_compile_definitions(
-            MBEDTLS_ECP_DP_ED25519_ENABLED=1
-            MBEDTLS_ECP_DP_ED448_ENABLED=1
-            MBEDTLS_EDDSA_C=1
-            MBEDTLS_SHA3_C=1
-        )
-
-    else()
-        set(MBEDTLS_ORIGIN "https://github.com/Mbed-TLS/mbedtls.git")
-        set(MBEDTLS_REF "v3.6.6")
-
-        execute_process(
-            COMMAND git -C ${MBEDTLS_PATH} describe --tags --exact-match
-            OUTPUT_VARIABLE CURRENT_TAG
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            RESULT_VARIABLE TAG_ERR
-        )
-
-        message(STATUS "Current tag for mbedTLS: ${CURRENT_TAG}")
-        message(STATUS "Target tag for mbedTLS:  ${MBEDTLS_REF}")
-
-        if(NOT TAG_ERR EQUAL 0 OR NOT "${CURRENT_TAG}" STREQUAL "${MBEDTLS_REF}")
-            set(NEED_UPDATE ON)
-        else()
-            set(NEED_UPDATE OFF)
-        endif()
-
-    endif()
-
-    if(NEED_UPDATE)
-        message(STATUS "Updating mbedTLS source code...")
-
-        execute_process(
-            COMMAND git -C ${MBEDTLS_PATH} submodule update --init --recursive --remote pico-keys-sdk
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_QUIET ERROR_QUIET
-        )
-
-        execute_process(
-            COMMAND git -C ${MBEDTLS_PATH} remote set-url origin ${MBEDTLS_ORIGIN}
-            OUTPUT_QUIET ERROR_QUIET
-        )
-
-        execute_process(
-            COMMAND git -C ${MBEDTLS_PATH} fetch origin +refs/heads/*:refs/remotes/origin/* --tags --force
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_QUIET ERROR_QUIET
-        )
-
-        execute_process(
-            COMMAND rm -rf ${MBEDTLS_PATH}/framework
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_QUIET ERROR_QUIET
-        )
-
-        if(ENABLE_EDDSA)
-            execute_process(
-                COMMAND git -C ${MBEDTLS_PATH} checkout -B ${MBEDTLS_REF} --track origin/${MBEDTLS_REF}
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                OUTPUT_QUIET ERROR_QUIET
-            )
-        else()
-            execute_process(
-                COMMAND git -C ${MBEDTLS_PATH} checkout ${MBEDTLS_REF}
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                OUTPUT_QUIET ERROR_QUIET
-            )
-        endif()
-    else()
-        message(STATUS "mbedTLS source code is up to date.")
-    endif()
-endif()
 
 option(ENABLE_PQC "Enable/disable PQC support" OFF)
 configure_bool_option(
@@ -364,21 +254,10 @@ list(APPEND PICO_KEYS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/io/Keyboard/KeyboardReader/TCA8418.cpp
 )
 
-if(ESP_PLATFORM)
-    list(APPEND PICO_KEYS_SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/src/led/led_neopixel.c
-        ${CMAKE_CURRENT_LIST_DIR}/src/led/led_pico.c
-    )
-else()
-    if(NOT ENABLE_EMULATION)
-        list(APPEND PICO_KEYS_SOURCES
-            ${CMAKE_CURRENT_LIST_DIR}/src/led/led_cyw43.c
-            ${CMAKE_CURRENT_LIST_DIR}/src/led/led_pico.c
-            ${CMAKE_CURRENT_LIST_DIR}/src/led/led_pimoroni.c
-            ${CMAKE_CURRENT_LIST_DIR}/src/led/led_ws2812.c
-        )
-    endif()
-endif()
+list(APPEND PICO_KEYS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/led/led_neopixel.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/led/led_pico.c
+)
 
 ## mbedTLS reports an stringop overflow for cmac.c
 if(NOT ENABLE_EMULATION AND NOT APPLE)

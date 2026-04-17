@@ -17,38 +17,14 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-if(ESP_PLATFORM)
-    set(EXTRA_COMPONENT_DIRS src)
-    include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-else()
-    if(NOT ENABLE_EMULATION)
-        set(PICO_USE_FASTEST_SUPPORTED_CLOCK 1)
-        include(pico_sdk_import.cmake)
-    endif()
-
-    project(pico_rescue C CXX ASM)
-
-    set(CMAKE_C_STANDARD 11)
-    set(CMAKE_CXX_STANDARD 17)
-
-    if(NOT DEFINED __FOR_CI)
-        set(__FOR_CI 0)
-    endif()
-    if(__FOR_CI)
-        add_compile_definitions(__FOR_CI)
-    endif()
-
-    add_executable(pico_rescue)
-endif()
+set(EXTRA_COMPONENT_DIRS src)
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 set(USB_ITF_CCID 1)
 set(USB_ITF_WCID 0)
 include(cmake/version.cmake)
 include(cmake/options.cmake OPTIONAL)
 include(pico_keys_sdk_import.cmake)
-if(NOT ESP_PLATFORM)
-    set(SOURCES ${PICO_KEYS_SOURCES})
-endif()
 list(APPEND SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/fs/files.c
     ${CMAKE_CURRENT_LIST_DIR}/src/version.c
@@ -56,34 +32,4 @@ list(APPEND SOURCES
 
 SET_VERSION(ver_major ver_minor "${CMAKE_CURRENT_LIST_DIR}/src/pico_keys_version.h")
 
-if(ESP_PLATFORM)
-    project(pico_rescue)
-endif()
-
-if(NOT ESP_PLATFORM)
-    target_sources(pico_rescue PUBLIC ${SOURCES})
-    target_include_directories(pico_rescue PUBLIC ${INCLUDES})
-
-    target_compile_options(pico_rescue PRIVATE -Wall)
-    if(NOT MSVC)
-        target_compile_options(pico_rescue PRIVATE -Werror)
-    endif()
-
-    if(ENABLE_EMULATION)
-        if(NOT MSVC)
-            target_compile_options(pico_rescue PRIVATE -fdata-sections -ffunction-sections)
-        endif()
-        if(APPLE)
-            target_link_options(pico_rescue PRIVATE -Wl,-dead_strip)
-        elseif(MSVC)
-            target_compile_options(pico_rescue PRIVATE -WX)
-
-            target_link_libraries(pico_rescue PRIVATE wsock32 ws2_32 Bcrypt)
-        else()
-            target_link_options(pico_rescue PRIVATE -Wl,--gc-sections)
-        endif()
-        target_link_libraries(pico_rescue PRIVATE pthread m)
-    else()
-        pico_add_extra_outputs(${CMAKE_PROJECT_NAME})
-    endif()
-endif()
+project(pico_rescue)

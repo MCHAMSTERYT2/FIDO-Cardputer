@@ -17,42 +17,25 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-set(USB_VID 0x2E8A)
-set(USB_PID 0x10FE)
-
-if(ESP_PLATFORM)
-    if(NOT DEFINED ENABLE_POWER_ON_RESET)
-        set(ENABLE_POWER_ON_RESET 0)
-    endif()
-    if(NOT DEFINED ENABLE_PQC)
-        set(ENABLE_PQC 0)
-    endif()
-    set(EXTRA_COMPONENT_DIRS
-        src/fido
-        pico-keys-sdk/config/esp32/components/pico-keys-sdk
-        pico-keys-sdk/config/esp32/components/tinycbor
-    )
-    if(ENABLE_PQC)
-        list(APPEND EXTRA_COMPONENT_DIRS
-            pico-keys-sdk/config/esp32/components/mlkem512
-            pico-keys-sdk/config/esp32/components/mlkem768
-            pico-keys-sdk/config/esp32/components/mlkem1024
-        )
-    endif()
-    include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-else()
-    if(NOT ENABLE_EMULATION)
-        set(PICO_USE_FASTEST_SUPPORTED_CLOCK 1)
-        include(pico_sdk_import.cmake)
-    endif()
-
-    project(pico_fido C CXX ASM)
-
-    set(CMAKE_C_STANDARD 11)
-    set(CMAKE_CXX_STANDARD 17)
-
-    add_executable(pico_fido)
+if(NOT DEFINED ENABLE_POWER_ON_RESET)
+    set(ENABLE_POWER_ON_RESET 0)
 endif()
+if(NOT DEFINED ENABLE_PQC)
+    set(ENABLE_PQC 0)
+endif()
+set(EXTRA_COMPONENT_DIRS
+    src/fido
+    pico-keys-sdk/config/esp32/components/pico-keys-sdk
+    pico-keys-sdk/config/esp32/components/tinycbor
+)
+if(ENABLE_PQC)
+    list(APPEND EXTRA_COMPONENT_DIRS
+        pico-keys-sdk/config/esp32/components/mlkem512
+        pico-keys-sdk/config/esp32/components/mlkem768
+        pico-keys-sdk/config/esp32/components/mlkem1024
+    )
+endif()
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 include(pico-keys-sdk/cmake/options.cmake)
 
@@ -90,9 +73,6 @@ endif()
 set(USB_ITF_HID 1)
 include(pico-keys-sdk/pico_keys_sdk_import.cmake)
 
-if(NOT ESP_PLATFORM)
-    set(SOURCES ${PICO_KEYS_SOURCES})
-endif()
 
 list(APPEND SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/fido/fido.c
@@ -130,85 +110,9 @@ if(ENABLE_OTP_APP)
 endif()
 
 SET_VERSION(ver_major ver_minor "${CMAKE_CURRENT_LIST_DIR}/src/fido/version.h")
-if(ESP_PLATFORM)
-    project(pico_fido)
-endif()
+project(FIDO-Cardputer)
 
 set(INCLUDES ${INCLUDES}
     ${CMAKE_CURRENT_LIST_DIR}/src/fido
 )
 
-if(NOT ESP_PLATFORM)
-    target_sources(pico_fido PUBLIC ${SOURCES})
-    target_include_directories(pico_fido PUBLIC ${INCLUDES})
-
-    set(COMMON_COMPILE_OPTIONS
-        -Wall
-    )
-    target_compile_options(pico_fido PRIVATE ${COMMON_COMPILE_OPTIONS})
-
-    pico_keys_apply_strict_flags(
-        SOURCES ${SOURCES}
-        FILTER_REGEX "/src/fido/|/pico-keys-sdk/src/|/pico-keys-sdk/config/"
-    )
-
-    if(NOT MSVC)
-        string(FIND ${CMAKE_C_COMPILER} ":" COMPILER_COLON)
-        if(${COMPILER_COLON} GREATER_EQUAL 0)
-            target_compile_options(pico_fido PRIVATE
-                -Wno-error=use-after-free
-            )
-        endif()
-    endif()
-
-    if(ENABLE_EMULATION)
-        if(NOT MSVC)
-            set(EMULATION_NON_MSVC_COMPILE_OPTIONS
-                -fdata-sections
-                -ffunction-sections
-            )
-            target_compile_options(pico_fido PRIVATE ${EMULATION_NON_MSVC_COMPILE_OPTIONS})
-        endif()
-
-        if(APPLE)
-            set(EMULATION_APPLE_LINK_OPTIONS
-                -Wl,-dead_strip
-            )
-            target_link_options(pico_fido PRIVATE ${EMULATION_APPLE_LINK_OPTIONS})
-
-            if(DEBUG_APDU)
-                set(DEBUG_APDU_SANITIZER_OPTIONS
-                    -fsanitize=address
-                    -g
-                    -O1
-                    -fno-omit-frame-pointer
-                )
-                target_compile_options(pico_fido PRIVATE ${DEBUG_APDU_SANITIZER_OPTIONS})
-                target_link_options(pico_fido PRIVATE ${DEBUG_APDU_SANITIZER_OPTIONS})
-            endif()
-        else()
-            set(EMULATION_NON_APPLE_LINK_OPTIONS
-                -Wl,--gc-sections
-            )
-            target_link_options(pico_fido PRIVATE ${EMULATION_NON_APPLE_LINK_OPTIONS})
-        endif()
-
-        target_link_libraries(pico_fido PRIVATE pico_keys_sdk mbedtls pthread m)
-    else()
-        target_link_libraries(
-            pico_fido
-            PRIVATE
-                pico_keys_sdk
-                pico_stdlib
-                pico_multicore
-                hardware_flash
-                hardware_sync
-                hardware_adc
-                pico_unique_id
-                pico_aon_timer
-                tinyusb_device
-                tinyusb_board
-        )
-        pico_add_extra_outputs(${CMAKE_PROJECT_NAME})
-    endif()
-endif()
